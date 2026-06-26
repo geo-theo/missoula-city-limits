@@ -231,9 +231,9 @@ input {
 }
 
 .basemap-control {
-  display: grid;
-  width: 82px;
-  gap: 4px;
+  display: flex;
+  width: auto;
+  gap: 5px;
   padding: 5px;
   border-radius: 8px;
   background: rgb(255 255 255 / 95%);
@@ -244,8 +244,9 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 30px;
-  padding: 0 8px;
+  min-width: 72px;
+  min-height: 34px;
+  padding: 0 10px;
   border: 1px solid transparent;
   border-radius: 5px;
   background: transparent;
@@ -376,12 +377,13 @@ input {
   }
 
   .basemap-control {
-    width: 76px;
+    gap: 4px;
   }
 
   .basemap-control button {
-    min-height: 29px;
-    padding: 0 6px;
+    min-width: 64px;
+    min-height: 32px;
+    padding: 0 7px;
     font-size: 11px;
   }
 }

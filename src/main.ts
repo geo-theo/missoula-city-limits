@@ -49,12 +49,11 @@ const map = L.map("map", {
   maxBoundsViscosity: 0.85,
 }).setView([46.8721, -113.994], 12);
 
-L.control.zoom({ position: "bottomright" }).addTo(map);
-
-let activeBasemapKey: BasemapKey = "osm";
+let activeBasemapKey: BasemapKey = "parks";
 let activeBasemapLayer = createBasemapLayer(activeBasemapKey).addTo(map);
 const basemapControl = createBasemapControl();
 basemapControl.addTo(map);
+L.control.zoom({ position: "bottomright" }).addTo(map);
 
 createIcons({ icons: { Search } });
 
