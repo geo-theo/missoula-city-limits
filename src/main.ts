@@ -1,8 +1,14 @@
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
 import { point } from "@turf/helpers";
+import { vectorTileLayer } from "esri-leaflet-vector";
 import L, { type GeoJSON as LeafletGeoJSON, type LatLngBounds } from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { createIcons, Search } from "lucide";
+import currentsLogoUrl from "../graphics/Currents_logo.png";
+import splashLogoUrl from "../graphics/Splash_logo.png";
+import leftLogoUrl from "../graphics/img1.png";
+import rightLogoUrl from "../graphics/img2.png";
 import {
   type AddressRecord,
   type AddressSearchIndex,
@@ -15,13 +21,26 @@ import {
 import "./styles.css";
 
 type CityLimitsGeoJson = GeoJSON.FeatureCollection<GeoJSON.MultiPolygon | GeoJSON.Polygon>;
+type ParksRecGeoJson = GeoJSON.FeatureCollection<GeoJSON.Point, { location: string }>;
+type BasemapKey = "parks" | "osm" | "imagery";
 
 const app = document.querySelector<HTMLDivElement>("#app");
+const leftLogo = requireElement<HTMLImageElement>("#left-logo");
+const rightLogo = requireElement<HTMLImageElement>("#right-logo");
 const input = requireElement<HTMLInputElement>("#address-input");
 const form = requireElement<HTMLFormElement>("#search-control");
 const searchButton = requireElement<HTMLButtonElement>("#search-button");
 const suggestionsList = requireElement<HTMLUListElement>("#suggestions");
 const statusEl = requireElement<HTMLDivElement>("#status");
+const PARKS_BASEMAP_ITEM_ID = "21e8121496b3400080ba738da52054c8";
+const BASEMAP_LABELS: Record<BasemapKey, string> = {
+  parks: "Parks",
+  osm: "OSM",
+  imagery: "Imagery",
+};
+
+leftLogo.src = leftLogoUrl;
+rightLogo.src = rightLogoUrl;
 
 const map = L.map("map", {
   zoomControl: false,
@@ -32,10 +51,10 @@ const map = L.map("map", {
 
 L.control.zoom({ position: "bottomright" }).addTo(map);
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19,
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-}).addTo(map);
+let activeBasemapKey: BasemapKey = "osm";
+let activeBasemapLayer = createBasemapLayer(activeBasemapKey).addTo(map);
+const basemapControl = createBasemapControl();
+basemapControl.addTo(map);
 
 createIcons({ icons: { Search } });
 
@@ -43,6 +62,7 @@ let cityLayer: LeafletGeoJSON | null = null;
 let cityBounds: LatLngBounds | null = null;
 let cityLimits: CityLimitsGeoJson | null = null;
 let addressIndex: AddressSearchIndex | null = null;
+let parksRecLayer: L.LayerGroup | null = null;
 let resultMarker: L.Marker | null = null;
 let currentSuggestions: RankedAddress[] = [];
 let highlightedSuggestion = -1;
@@ -110,9 +130,10 @@ document.addEventListener("pointerdown", (event) => {
 });
 
 async function initialize(): Promise<void> {
-  const [loadedCityLimits, addresses] = await Promise.all([
+  const [loadedCityLimits, addresses, parksRecLocations] = await Promise.all([
     fetchJson<CityLimitsGeoJson>("data/city-limits.geojson"),
     fetchJson<AddressRecord[]>("data/addresses.json"),
+    fetchJson<ParksRecGeoJson>("data/parks-rec-locations.geojson"),
   ]);
 
   cityLimits = loadedCityLimits;
@@ -126,6 +147,7 @@ async function initialize(): Promise<void> {
     },
   }).addTo(map);
   cityBounds = cityLayer.getBounds();
+  parksRecLayer = addParksRecMarkers(parksRecLocations);
 
   const maxBounds = buildDataBounds(addresses, cityBounds).pad(0.12);
   map.setMaxBounds(maxBounds);
@@ -142,6 +164,123 @@ async function initialize(): Promise<void> {
   input.disabled = false;
   searchButton.disabled = false;
   input.focus();
+}
+
+function addParksRecMarkers(locations: ParksRecGeoJson): L.LayerGroup {
+  const layer = L.layerGroup();
+
+  for (const feature of locations.features) {
+    const location = feature.properties?.location || "Parks & Rec location";
+    const [lng, lat] = feature.geometry.coordinates;
+
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+      continue;
+    }
+
+    L.marker([lat, lng], {
+      icon: createParksRecIcon(location),
+      keyboard: true,
+      title: location,
+      zIndexOffset: 400,
+    })
+      .bindPopup(location)
+      .addTo(layer);
+  }
+
+  layer.addTo(map);
+  return layer;
+}
+
+function createParksRecIcon(location: string): L.DivIcon {
+  const logoUrl = location.toLowerCase().includes("splash") ? splashLogoUrl : currentsLogoUrl;
+
+  return L.divIcon({
+    className: "parks-rec-pin",
+    html: `<span style="--pin-logo: url('${logoUrl}')"></span>`,
+    iconSize: [58, 58],
+    iconAnchor: [29, 29],
+    popupAnchor: [0, -30],
+  });
+}
+
+function createBasemapLayer(key: BasemapKey): L.Layer {
+  if (key === "parks") {
+    return vectorTileLayer(PARKS_BASEMAP_ITEM_ID, {
+      portalUrl: "https://www.arcgis.com",
+    }) as L.Layer;
+  }
+
+  if (key === "imagery") {
+    return L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+      maxZoom: 19,
+      attribution:
+        "Tiles &copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+    });
+  }
+
+  return L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  });
+}
+
+function createBasemapControl(): L.Control {
+  const control = new L.Control({ position: "bottomright" });
+
+  control.onAdd = () => {
+    const container = L.DomUtil.create("div", "leaflet-control basemap-control");
+
+    L.DomEvent.disableClickPropagation(container);
+    L.DomEvent.disableScrollPropagation(container);
+
+    (["parks", "osm", "imagery"] as BasemapKey[]).forEach((key) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.basemap = key;
+      button.textContent = BASEMAP_LABELS[key];
+      button.setAttribute("aria-label", `Switch to ${BASEMAP_LABELS[key]} basemap`);
+      button.setAttribute("aria-pressed", String(key === activeBasemapKey));
+      button.classList.toggle("is-active", key === activeBasemapKey);
+      button.addEventListener("click", () => setBasemap(key));
+      container.append(button);
+    });
+
+    return container;
+  };
+
+  return control;
+}
+
+function setBasemap(key: BasemapKey): void {
+  if (key === activeBasemapKey) {
+    return;
+  }
+
+  map.removeLayer(activeBasemapLayer);
+  activeBasemapKey = key;
+  activeBasemapLayer = createBasemapLayer(key).addTo(map);
+  updateBasemapControlState();
+  bringOperationalLayersForward();
+}
+
+function updateBasemapControlState(): void {
+  document.querySelectorAll<HTMLButtonElement>(".basemap-control button").forEach((button) => {
+    const isActive = button.dataset.basemap === activeBasemapKey;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function bringOperationalLayersForward(): void {
+  cityLayer?.bringToFront();
+
+  parksRecLayer?.eachLayer((layer) => {
+    if ("bringToFront" in layer && typeof layer.bringToFront === "function") {
+      layer.bringToFront();
+    }
+  });
+
+  resultMarker?.setZIndexOffset(800);
 }
 
 function submitSearch(rawQuery: string): void {

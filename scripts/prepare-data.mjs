@@ -8,9 +8,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const sourceCityPath = path.join(root, "data", "Missoula_city_limits.geojson");
 const sourceAddressPath = path.join(root, "data", "Address_Structure_Points.geojson");
+const sourceParksRecPath = path.join(root, "data", "ParksRec_Locations.geojson");
 const publicDataDir = path.join(root, "public", "data");
 const outputCityPath = path.join(publicDataDir, "city-limits.geojson");
 const outputAddressPath = path.join(publicDataDir, "addresses.json");
+const outputParksRecPath = path.join(publicDataDir, "parks-rec-locations.geojson");
 
 const TOKEN_EQUIVALENTS = {
   N: "NORTH",
@@ -58,6 +60,7 @@ await mkdir(publicDataDir, { recursive: true });
 
 const cityLimits = JSON.parse(await readFile(sourceCityPath, "utf8"));
 const addressesSource = JSON.parse(await readFile(sourceAddressPath, "utf8"));
+const parksRecSource = JSON.parse(await readFile(sourceParksRecPath, "utf8"));
 
 const compactCityLimits = {
   type: "FeatureCollection",
@@ -72,6 +75,18 @@ const compactCityLimits = {
 
 const cityGeometry = compactCityLimits.features[0];
 const addresses = [];
+const parksRecLocations = {
+  type: "FeatureCollection",
+  features: parksRecSource.features
+    .filter((feature) => feature.geometry?.type === "Point")
+    .map((feature) => ({
+      type: "Feature",
+      properties: {
+        location: clean(feature.properties?.Location),
+      },
+      geometry: feature.geometry,
+    })),
+};
 
 for (const feature of addressesSource.features) {
   const properties = feature.properties ?? {};
@@ -134,10 +149,12 @@ addresses.sort((a, b) => {
 
 await writeFile(outputCityPath, `${JSON.stringify(compactCityLimits)}\n`);
 await writeFile(outputAddressPath, `${JSON.stringify(addresses)}\n`);
+await writeFile(outputParksRecPath, `${JSON.stringify(parksRecLocations)}\n`);
 
 const insideCount = addresses.filter((address) => address.insideCityLimits).length;
 console.log(`Wrote ${path.relative(root, outputCityPath)}`);
 console.log(`Wrote ${addresses.length.toLocaleString()} addresses to ${path.relative(root, outputAddressPath)}`);
+console.log(`Wrote ${parksRecLocations.features.length.toLocaleString()} Parks & Rec locations to ${path.relative(root, outputParksRecPath)}`);
 console.log(`${insideCount.toLocaleString()} addresses are within city limits`);
 
 function normalizeAddress(value) {

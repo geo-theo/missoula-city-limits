@@ -13,26 +13,30 @@
     <div id="app">
       <div id="map" aria-label="Missoula city limits map"></div>
 
-      <form id="search-control" class="search-control" autocomplete="off">
-        <div class="search-row">
-          <input
-            id="address-input"
-            name="address"
-            type="search"
-            inputmode="search"
-            placeholder="Search an address"
-            aria-label="Search an address"
-            aria-controls="suggestions"
-            aria-expanded="false"
-          />
-          <button id="search-button" type="submit" aria-label="Search">
-            <i data-lucide="search" aria-hidden="true"></i>
-            <span>Search</span>
-          </button>
-        </div>
-        <div id="status" class="status" role="status">Loading data...</div>
-        <ul id="suggestions" class="suggestions" role="listbox" hidden></ul>
-      </form>
+      <div class="top-brand-row">
+        <img id="left-logo" class="brand-logo brand-logo-left" alt="" />
+        <form id="search-control" class="search-control" autocomplete="off">
+          <div class="search-row">
+            <input
+              id="address-input"
+              name="address"
+              type="search"
+              inputmode="search"
+              placeholder="Search an address"
+              aria-label="Search an address"
+              aria-controls="suggestions"
+              aria-expanded="false"
+            />
+            <button id="search-button" type="submit" aria-label="Search">
+              <i data-lucide="search" aria-hidden="true"></i>
+              <span>Search</span>
+            </button>
+          </div>
+          <div id="status" class="status" role="status">Loading data...</div>
+          <ul id="suggestions" class="suggestions" role="listbox" hidden></ul>
+        </form>
+        <img id="right-logo" class="brand-logo brand-logo-right" alt="" />
+      </div>
     </div>
 
     <script type="module" src="/src/main.ts"></script>
