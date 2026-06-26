@@ -20,8 +20,13 @@ import {
 } from "./address";
 import "./styles.css";
 
-type CityLimitsGeoJson = GeoJSON.FeatureCollection<GeoJSON.MultiPolygon | GeoJSON.Polygon>;
-type ParksRecGeoJson = GeoJSON.FeatureCollection<GeoJSON.Point, { location: string }>;
+type CityLimitsGeoJson = GeoJSON.FeatureCollection<
+  GeoJSON.MultiPolygon | GeoJSON.Polygon
+>;
+type ParksRecGeoJson = GeoJSON.FeatureCollection<
+  GeoJSON.Point,
+  { location: string }
+>;
 type BasemapKey = "parks" | "osm" | "imagery";
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -32,7 +37,7 @@ const form = requireElement<HTMLFormElement>("#search-control");
 const searchButton = requireElement<HTMLButtonElement>("#search-button");
 const suggestionsList = requireElement<HTMLUListElement>("#suggestions");
 const statusEl = requireElement<HTMLDivElement>("#status");
-const PARKS_BASEMAP_ITEM_ID = "21e8121496b3400080ba738da52054c8";
+const PARKS_BASEMAP_ITEM_ID = "7bde4cb58f1c4fe3bef7f9fbeeeb7e4b";
 const BASEMAP_LABELS: Record<BasemapKey, string> = {
   parks: "Parks",
   osm: "OSM",
@@ -107,7 +112,10 @@ input.addEventListener("keydown", (event) => {
 
   if (event.key === "ArrowDown") {
     event.preventDefault();
-    highlightedSuggestion = Math.min(highlightedSuggestion + 1, currentSuggestions.length - 1);
+    highlightedSuggestion = Math.min(
+      highlightedSuggestion + 1,
+      currentSuggestions.length - 1,
+    );
     renderSuggestions(currentSuggestions);
   }
 
@@ -191,7 +199,9 @@ function addParksRecMarkers(locations: ParksRecGeoJson): L.LayerGroup {
 }
 
 function createParksRecIcon(location: string): L.DivIcon {
-  const logoUrl = location.toLowerCase().includes("splash") ? splashLogoUrl : currentsLogoUrl;
+  const logoUrl = location.toLowerCase().includes("splash")
+    ? splashLogoUrl
+    : currentsLogoUrl;
 
   return L.divIcon({
     className: "parks-rec-pin",
@@ -210,16 +220,20 @@ function createBasemapLayer(key: BasemapKey): L.Layer {
   }
 
   if (key === "imagery") {
-    return L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-      maxZoom: 19,
-      attribution:
-        "Tiles &copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community",
-    });
+    return L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        maxZoom: 19,
+        attribution:
+          "Tiles &copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+      },
+    );
   }
 
   return L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   });
 }
 
@@ -227,7 +241,10 @@ function createBasemapControl(): L.Control {
   const control = new L.Control({ position: "bottomright" });
 
   control.onAdd = () => {
-    const container = L.DomUtil.create("div", "leaflet-control basemap-control");
+    const container = L.DomUtil.create(
+      "div",
+      "leaflet-control basemap-control",
+    );
 
     L.DomEvent.disableClickPropagation(container);
     L.DomEvent.disableScrollPropagation(container);
@@ -237,7 +254,10 @@ function createBasemapControl(): L.Control {
       button.type = "button";
       button.dataset.basemap = key;
       button.textContent = BASEMAP_LABELS[key];
-      button.setAttribute("aria-label", `Switch to ${BASEMAP_LABELS[key]} basemap`);
+      button.setAttribute(
+        "aria-label",
+        `Switch to ${BASEMAP_LABELS[key]} basemap`,
+      );
       button.setAttribute("aria-pressed", String(key === activeBasemapKey));
       button.classList.toggle("is-active", key === activeBasemapKey);
       button.addEventListener("click", () => setBasemap(key));
@@ -263,11 +283,13 @@ function setBasemap(key: BasemapKey): void {
 }
 
 function updateBasemapControlState(): void {
-  document.querySelectorAll<HTMLButtonElement>(".basemap-control button").forEach((button) => {
-    const isActive = button.dataset.basemap === activeBasemapKey;
-    button.classList.toggle("is-active", isActive);
-    button.setAttribute("aria-pressed", String(isActive));
-  });
+  document
+    .querySelectorAll<HTMLButtonElement>(".basemap-control button")
+    .forEach((button) => {
+      const isActive = button.dataset.basemap === activeBasemapKey;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", String(isActive));
+    });
 }
 
 function bringOperationalLayersForward(): void {
@@ -376,7 +398,9 @@ function renderSuggestions(matches: RankedAddress[]): void {
     title.className = "suggestion-title";
     title.textContent = match.record.display;
     meta.className = "suggestion-meta";
-    meta.textContent = [match.record.community, match.record.zipcode].filter(Boolean).join(" · ");
+    meta.textContent = [match.record.community, match.record.zipcode]
+      .filter(Boolean)
+      .join(" · ");
 
     button.append(title, meta);
     item.append(button);
@@ -400,8 +424,11 @@ function selectAddress(address: AddressRecord): void {
   input.value = address.display;
   hideSuggestions();
 
-  const insideCityLimits = address.insideCityLimits || isAddressInsideCityLimits(address);
-  const resultText = insideCityLimits ? "Within city limits" : "Outside city limits";
+  const insideCityLimits =
+    address.insideCityLimits || isAddressInsideCityLimits(address);
+  const resultText = insideCityLimits
+    ? "Within city limits"
+    : "Outside city limits";
 
   setStatus(resultText);
   app?.classList.toggle("result-inside", insideCityLimits);
@@ -437,7 +464,10 @@ function fitResult(latLng: L.LatLng): void {
     return;
   }
 
-  const targetBounds = L.latLngBounds(cityBounds.getSouthWest(), cityBounds.getNorthEast()).extend(latLng);
+  const targetBounds = L.latLngBounds(
+    cityBounds.getSouthWest(),
+    cityBounds.getNorthEast(),
+  ).extend(latLng);
 
   map.fitBounds(targetBounds, {
     maxZoom: 13,
@@ -452,11 +482,19 @@ function isAddressInsideCityLimits(address: AddressRecord): boolean {
   }
 
   const addressPoint = point([address.lng, address.lat]);
-  return cityLimits.features.some((feature) => booleanPointInPolygon(addressPoint, feature));
+  return cityLimits.features.some((feature) =>
+    booleanPointInPolygon(addressPoint, feature),
+  );
 }
 
-function buildDataBounds(addresses: AddressRecord[], initialBounds: LatLngBounds): LatLngBounds {
-  const bounds = L.latLngBounds(initialBounds.getSouthWest(), initialBounds.getNorthEast());
+function buildDataBounds(
+  addresses: AddressRecord[],
+  initialBounds: LatLngBounds,
+): LatLngBounds {
+  const bounds = L.latLngBounds(
+    initialBounds.getSouthWest(),
+    initialBounds.getNorthEast(),
+  );
 
   for (const address of addresses) {
     bounds.extend([address.lat, address.lng]);
