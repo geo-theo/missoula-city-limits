@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Missoula City Limits Address Checker</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23125f63' d='M16 2a10 10 0 0 0-10 10c0 7.5 10 18 10 18s10-10.5 10-18A10 10 0 0 0 16 2Zm0 14.5A4.5 4.5 0 1 1 16 7.5a4.5 4.5 0 0 1 0 9Z'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <div id="map" aria-label="Missoula city limits map"></div>
+
+      <form id="search-control" class="search-control" autocomplete="off">
+        <div class="search-row">
+          <input
+            id="address-input"
+            name="address"
+            type="search"
+            inputmode="search"
+            placeholder="Search an address"
+            aria-label="Search an address"
+            aria-controls="suggestions"
+            aria-expanded="false"
+          />
+          <button id="search-button" type="submit" aria-label="Search">
+            <i data-lucide="search" aria-hidden="true"></i>
+            <span>Search</span>
+          </button>
+        </div>
+        <div id="status" class="status" role="status">Loading data...</div>
+        <ul id="suggestions" class="suggestions" role="listbox" hidden></ul>
+      </form>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
