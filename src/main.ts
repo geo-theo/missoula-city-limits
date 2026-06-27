@@ -1,9 +1,7 @@
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
 import { point } from "@turf/helpers";
-import { vectorTileLayer } from "esri-leaflet-vector";
 import L, { type GeoJSON as LeafletGeoJSON, type LatLngBounds } from "leaflet";
 import "leaflet/dist/leaflet.css";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { createIcons, Search } from "lucide";
 import currentsLogoUrl from "../graphics/Currents_logo.png";
 import splashLogoUrl from "../graphics/Splash_logo.png";
@@ -27,7 +25,7 @@ type ParksRecGeoJson = GeoJSON.FeatureCollection<
   GeoJSON.Point,
   { location: string }
 >;
-type BasemapKey = "parks" | "osm" | "imagery";
+type BasemapKey = "topo" | "osm" | "imagery";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 const leftLogo = requireElement<HTMLImageElement>("#left-logo");
@@ -37,9 +35,8 @@ const form = requireElement<HTMLFormElement>("#search-control");
 const searchButton = requireElement<HTMLButtonElement>("#search-button");
 const suggestionsList = requireElement<HTMLUListElement>("#suggestions");
 const statusEl = requireElement<HTMLDivElement>("#status");
-const PARKS_BASEMAP_ITEM_ID = "7bde4cb58f1c4fe3bef7f9fbeeeb7e4b";
 const BASEMAP_LABELS: Record<BasemapKey, string> = {
-  parks: "Parks",
+  topo: "Topo",
   osm: "OSM",
   imagery: "Imagery",
 };
@@ -54,7 +51,7 @@ const map = L.map("map", {
   maxBoundsViscosity: 0.85,
 }).setView([46.8721, -113.994], 12);
 
-let activeBasemapKey: BasemapKey = "parks";
+let activeBasemapKey: BasemapKey = "topo";
 let activeBasemapLayer = createBasemapLayer(activeBasemapKey).addTo(map);
 const basemapControl = createBasemapControl();
 basemapControl.addTo(map);
@@ -213,10 +210,15 @@ function createParksRecIcon(location: string): L.DivIcon {
 }
 
 function createBasemapLayer(key: BasemapKey): L.Layer {
-  if (key === "parks") {
-    return vectorTileLayer(PARKS_BASEMAP_ITEM_ID, {
-      portalUrl: "https://www.arcgis.com",
-    }) as L.Layer;
+  if (key === "topo") {
+    return L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+      {
+        maxZoom: 19,
+        attribution:
+          "Tiles &copy; Esri, TomTom, Garmin, FAO, NOAA, USGS, and the GIS User Community",
+      },
+    );
   }
 
   if (key === "imagery") {
@@ -249,7 +251,7 @@ function createBasemapControl(): L.Control {
     L.DomEvent.disableClickPropagation(container);
     L.DomEvent.disableScrollPropagation(container);
 
-    (["parks", "osm", "imagery"] as BasemapKey[]).forEach((key) => {
+    (["topo", "osm", "imagery"] as BasemapKey[]).forEach((key) => {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.basemap = key;
