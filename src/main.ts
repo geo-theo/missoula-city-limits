@@ -48,6 +48,8 @@ const map = L.map("map", {
   zoomControl: false,
   minZoom: 8,
   maxZoom: 18,
+  zoomDelta: 0.5,
+  zoomSnap: 0.25,
   maxBoundsViscosity: 0.85,
 }).setView([46.8721, -113.994], 12);
 
@@ -64,6 +66,7 @@ let cityBounds: LatLngBounds | null = null;
 let cityLimits: CityLimitsGeoJson | null = null;
 let addressIndex: AddressSearchIndex | null = null;
 let parksRecLayer: L.LayerGroup | null = null;
+let parksRecLocations: ParksRecGeoJson | null = null;
 let resultMarker: L.Marker | null = null;
 let currentSuggestions: RankedAddress[] = [];
 let highlightedSuggestion = -1;
@@ -134,13 +137,15 @@ document.addEventListener("pointerdown", (event) => {
 });
 
 async function initialize(): Promise<void> {
-  const [loadedCityLimits, addresses, parksRecLocations] = await Promise.all([
-    fetchJson<CityLimitsGeoJson>("data/city-limits.geojson"),
-    fetchJson<AddressRecord[]>("data/addresses.json"),
-    fetchJson<ParksRecGeoJson>("data/parks-rec-locations.geojson"),
-  ]);
+  const [loadedCityLimits, addresses, loadedParksRecLocations] =
+    await Promise.all([
+      fetchJson<CityLimitsGeoJson>("data/city-limits.geojson"),
+      fetchJson<AddressRecord[]>("data/addresses.json"),
+      fetchJson<ParksRecGeoJson>("data/parks-rec-locations.geojson"),
+    ]);
 
   cityLimits = loadedCityLimits;
+  parksRecLocations = loadedParksRecLocations;
   cityLayer = L.geoJSON(cityLimits, {
     style: {
       color: "#125f63",
@@ -456,13 +461,80 @@ function selectAddress(address: AddressRecord): void {
   markerElement?.classList.toggle("is-inside", insideCityLimits);
   markerElement?.classList.toggle("is-outside", !insideCityLimits);
 
-  resultMarker.bindPopup(resultText).openPopup();
+  resultMarker
+    .bindPopup(buildResultPopupContent(resultText, address))
+    .openPopup();
   fitResult(latLng);
+}
+
+function buildResultPopupContent(
+  resultText: "Within city limits" | "Outside city limits",
+  address: AddressRecord,
+): string {
+  const distanceText = buildDistanceText(address);
+
+  return [
+    `<strong>${resultText}</strong>`,
+    distanceText
+      ? `<span class="popup-distance-line">${distanceText}</span>`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("<br>");
+}
+
+function buildDistanceText(address: AddressRecord): string {
+  const currents = findParksRecLocation("Currents");
+  const splash = findParksRecLocation("Splash");
+
+  if (!currents || !splash) {
+    return "";
+  }
+
+  const currentsMiles = planarDistanceMiles(address, currents);
+  const splashMiles = planarDistanceMiles(address, splash);
+
+  return `${formatMiles(currentsMiles)} miles to Currents / ${formatMiles(splashMiles)} miles to Splash`;
+}
+
+function findParksRecLocation(
+  name: string,
+): GeoJSON.Feature<GeoJSON.Point, { location: string }> | null {
+  const normalizedName = name.toLowerCase();
+
+  return (
+    parksRecLocations?.features.find((feature) =>
+      feature.properties?.location?.toLowerCase().includes(normalizedName),
+    ) ?? null
+  );
+}
+
+function planarDistanceMiles(
+  address: AddressRecord,
+  destination: GeoJSON.Feature<GeoJSON.Point, { location: string }>,
+): number {
+  const [destinationLng, destinationLat] = destination.geometry.coordinates;
+  const averageLatRadians =
+    ((address.lat + destinationLat) / 2) * (Math.PI / 180);
+  const milesPerDegreeLatitude = 69.0;
+  const milesPerDegreeLongitude = Math.cos(averageLatRadians) * 69.172;
+  const dx = (destinationLng - address.lng) * milesPerDegreeLongitude;
+  const dy = (destinationLat - address.lat) * milesPerDegreeLatitude;
+
+  return Math.hypot(dx, dy);
+}
+
+function formatMiles(miles: number): string {
+  if (miles < 0.05) {
+    return "<0.1";
+  }
+
+  return miles.toFixed(1);
 }
 
 function fitResult(latLng: L.LatLng): void {
   if (!cityBounds) {
-    map.setView(latLng, 13);
+    map.setView(latLng, 13.5);
     return;
   }
 
@@ -476,6 +548,9 @@ function fitResult(latLng: L.LatLng): void {
     paddingTopLeft: [24, 124],
     paddingBottomRight: [24, 36],
   });
+
+  const zoomBoost = Math.log2(1.5);
+  map.setZoom(Math.min(map.getZoom() + zoomBoost, 13.5));
 }
 
 function isAddressInsideCityLimits(address: AddressRecord): boolean {
