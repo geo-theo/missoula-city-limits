@@ -102,6 +102,7 @@ const TOKEN_EQUIVALENTS: Record<string, string> = {
   BLDG: "BUILDING",
 };
 
+// Address normalization: make typed text and source addresses comparable for search.
 export function normalizeAddress(value: string): string {
   return value
     .normalize("NFKD")
@@ -116,6 +117,7 @@ export function normalizeAddress(value: string): string {
     .trim();
 }
 
+// Search index builder: exact lookup maps plus MiniSearch fuzzy/prefix search.
 export function buildAddressSearchIndex(addresses: AddressRecord[]): AddressSearchIndex {
   const byId = new Map<number, AddressRecord>();
   const exactByFull = new Map<string, AddressRecord[]>();
@@ -157,11 +159,13 @@ export function buildAddressSearchIndex(addresses: AddressRecord[]): AddressSear
   };
 }
 
+// Exact address match: try full address first, then base address without unit/subaddress detail.
 export function findExactCandidates(index: AddressSearchIndex, rawQuery: string): AddressRecord[] {
   const normalized = normalizeAddress(rawQuery);
   return index.exactByFull.get(normalized) ?? index.exactByBase.get(normalized) ?? [];
 }
 
+// Fuzzy address search: use MiniSearch results, then apply local ranking rules.
 export function searchAddresses(index: AddressSearchIndex, rawQuery: string, limit = 8): RankedAddress[] {
   const normalized = normalizeAddress(rawQuery);
 
@@ -194,6 +198,7 @@ export function searchAddresses(index: AddressSearchIndex, rawQuery: string, lim
     .slice(0, limit);
 }
 
+// Confident match test: only auto-select when the top result is clearly strong enough.
 export function isConfidentMatch(rawQuery: string, matches: RankedAddress[]): boolean {
   if (matches.length === 0) {
     return false;
@@ -232,6 +237,7 @@ function addToLookup(map: Map<string, AddressRecord[]>, key: string, address: Ad
   map.set(key, [address]);
 }
 
+// Address ranking: boost exact address number, road overlap, Missoula community, and local ZIPs.
 function rankAddress(
   rawQuery: string,
   normalizedQuery: string,

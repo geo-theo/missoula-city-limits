@@ -48,11 +48,13 @@ const map = L.map("map", {
   zoomControl: false,
   minZoom: 8,
   maxZoom: 18,
+  // Result zoom: fractional zoom makes the found-address zoom boost feel closer to 50%.
   zoomDelta: 0.5,
   zoomSnap: 0.25,
   maxBoundsViscosity: 0.85,
 }).setView([46.8721, -113.994], 12);
 
+// Basemap switcher: start on Esri Topo raster and let users toggle OSM/Imagery.
 let activeBasemapKey: BasemapKey = "topo";
 let activeBasemapLayer = createBasemapLayer(activeBasemapKey).addTo(map);
 const basemapControl = createBasemapControl();
@@ -136,6 +138,7 @@ document.addEventListener("pointerdown", (event) => {
   }
 });
 
+// App initialization: load prepared GeoJSON/JSON, draw map layers, lock map bounds, then build search.
 async function initialize(): Promise<void> {
   const [loadedCityLimits, addresses, loadedParksRecLocations] =
     await Promise.all([
@@ -158,6 +161,7 @@ async function initialize(): Promise<void> {
   cityBounds = cityLayer.getBounds();
   parksRecLayer = addParksRecMarkers(parksRecLocations);
 
+  // Map extent lock: include all address data but keep users anchored near Missoula County.
   const maxBounds = buildDataBounds(addresses, cityBounds).pad(0.12);
   map.setMaxBounds(maxBounds);
   map.fitBounds(cityBounds, {
@@ -175,6 +179,7 @@ async function initialize(): Promise<void> {
   input.focus();
 }
 
+// Parks Rec location pins: permanent Currents/Splash logo markers.
 function addParksRecMarkers(locations: ParksRecGeoJson): L.LayerGroup {
   const layer = L.layerGroup();
 
@@ -200,6 +205,7 @@ function addParksRecMarkers(locations: ParksRecGeoJson): L.LayerGroup {
   return layer;
 }
 
+// Parks Rec pin icon: choose the correct logo and place it inside a circular marker.
 function createParksRecIcon(location: string): L.DivIcon {
   const logoUrl = location.toLowerCase().includes("splash")
     ? splashLogoUrl
@@ -214,6 +220,7 @@ function createParksRecIcon(location: string): L.DivIcon {
   });
 }
 
+// Basemap layer factory: all basemaps are raster tile layers to avoid token-gated vector basemaps.
 function createBasemapLayer(key: BasemapKey): L.Layer {
   if (key === "topo") {
     return L.tileLayer(
@@ -244,6 +251,7 @@ function createBasemapLayer(key: BasemapKey): L.Layer {
   });
 }
 
+// Basemap control: custom horizontal Leaflet control below the zoom buttons.
 function createBasemapControl(): L.Control {
   const control = new L.Control({ position: "bottomright" });
 
@@ -277,6 +285,7 @@ function createBasemapControl(): L.Control {
   return control;
 }
 
+// Basemap switch action: replace the tile layer and bring city/search layers back above it.
 function setBasemap(key: BasemapKey): void {
   if (key === activeBasemapKey) {
     return;
@@ -289,6 +298,7 @@ function setBasemap(key: BasemapKey): void {
   bringOperationalLayersForward();
 }
 
+// Basemap active state: update button styling and aria-pressed after toggles.
 function updateBasemapControlState(): void {
   document
     .querySelectorAll<HTMLButtonElement>(".basemap-control button")
@@ -299,6 +309,7 @@ function updateBasemapControlState(): void {
     });
 }
 
+// Layer ordering: keep city limits, Parks Rec pins, and result pin above the current basemap.
 function bringOperationalLayersForward(): void {
   cityLayer?.bringToFront();
 
@@ -311,6 +322,7 @@ function bringOperationalLayersForward(): void {
   resultMarker?.setZIndexOffset(800);
 }
 
+// Address search submit: exact match first, then fuzzy match, then suggestions if uncertain.
 function submitSearch(rawQuery: string): void {
   clearPendingSuggestions();
   const query = rawQuery.trim();
@@ -355,6 +367,7 @@ function submitSearch(rawQuery: string): void {
   hideSuggestions();
 }
 
+// Address autocomplete: fuzzy/prefix suggestions while the user types.
 function updateSuggestions(rawQuery: string): void {
   if (!addressIndex) {
     return;
@@ -387,6 +400,7 @@ function showAmbiguousMatches(matches: RankedAddress[], message: string): void {
   renderSuggestions(matches);
 }
 
+// Search suggestions renderer: one button per ranked address candidate.
 function renderSuggestions(matches: RankedAddress[]): void {
   currentSuggestions = matches;
   suggestionsList.innerHTML = "";
@@ -426,6 +440,7 @@ function hideSuggestions(): void {
   input.setAttribute("aria-expanded", "false");
 }
 
+// Found address result: move the result pin, open the popup, and zoom toward the address.
 function selectAddress(address: AddressRecord): void {
   clearPendingSuggestions();
   input.value = address.display;
@@ -467,6 +482,7 @@ function selectAddress(address: AddressRecord): void {
   fitResult(latLng);
 }
 
+// Result popup content: bold city-limit result plus a normal-weight distance line.
 function buildResultPopupContent(
   resultText: "Within city limits" | "Outside city limits",
   address: AddressRecord,
@@ -483,6 +499,7 @@ function buildResultPopupContent(
     .join("<br>");
 }
 
+// Distance popup line: show planar miles from the searched address to Currents and Splash.
 function buildDistanceText(address: AddressRecord): string {
   const currents = findParksRecLocation("Currents");
   const splash = findParksRecLocation("Splash");
@@ -497,6 +514,7 @@ function buildDistanceText(address: AddressRecord): string {
   return `${formatMiles(currentsMiles)} miles to Currents / ${formatMiles(splashMiles)} miles to Splash`;
 }
 
+// Parks Rec lookup: find a named set location from the loaded ParksRec GeoJSON.
 function findParksRecLocation(
   name: string,
 ): GeoJSON.Feature<GeoJSON.Point, { location: string }> | null {
@@ -509,6 +527,7 @@ function findParksRecLocation(
   );
 }
 
+// Euclidean distance: local planar approximation in miles for Missoula-area lat/lng.
 function planarDistanceMiles(
   address: AddressRecord,
   destination: GeoJSON.Feature<GeoJSON.Point, { location: string }>,
@@ -532,6 +551,7 @@ function formatMiles(miles: number): string {
   return miles.toFixed(1);
 }
 
+// Result zoom: fit city limits plus marker, then zoom about 50% closer to the found point.
 function fitResult(latLng: L.LatLng): void {
   if (!cityBounds) {
     map.setView(latLng, 13.5);
@@ -553,6 +573,7 @@ function fitResult(latLng: L.LatLng): void {
   map.setZoom(Math.min(map.getZoom() + zoomBoost, 13.5));
 }
 
+// City limits check: Turf point-in-polygon test against the loaded Missoula boundary.
 function isAddressInsideCityLimits(address: AddressRecord): boolean {
   if (!cityLimits) {
     return address.insideCityLimits;
@@ -564,6 +585,7 @@ function isAddressInsideCityLimits(address: AddressRecord): boolean {
   );
 }
 
+// Data bounds: builds the max pan extent from city limits plus all county address points.
 function buildDataBounds(
   addresses: AddressRecord[],
   initialBounds: LatLngBounds,

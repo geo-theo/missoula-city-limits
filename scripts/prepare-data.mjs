@@ -58,10 +58,12 @@ const TITLE_CASE_SMALL_WORDS = new Set(["N", "S", "E", "W", "NE", "NW", "SE", "S
 
 await mkdir(publicDataDir, { recursive: true });
 
+// Data prep inputs: read original GIS exports from /data before creating browser-ready files.
 const cityLimits = JSON.parse(await readFile(sourceCityPath, "utf8"));
 const addressesSource = JSON.parse(await readFile(sourceAddressPath, "utf8"));
 const parksRecSource = JSON.parse(await readFile(sourceParksRecPath, "utf8"));
 
+// City limits output: strip metadata and keep only the geometry/display name needed by the app.
 const compactCityLimits = {
   type: "FeatureCollection",
   features: cityLimits.features.map((feature) => ({
@@ -75,6 +77,8 @@ const compactCityLimits = {
 
 const cityGeometry = compactCityLimits.features[0];
 const addresses = [];
+
+// Parks Rec output: normalize Currents/Splash point fields for permanent map pins.
 const parksRecLocations = {
   type: "FeatureCollection",
   features: parksRecSource.features
@@ -88,6 +92,7 @@ const parksRecLocations = {
     })),
 };
 
+// Address output: compact 50k+ raw point features into searchable browser records.
 for (const feature of addressesSource.features) {
   const properties = feature.properties ?? {};
   const coordinates = feature.geometry?.coordinates;
@@ -121,6 +126,7 @@ for (const feature of addressesSource.features) {
     zipcode,
     lng: roundCoordinate(lng),
     lat: roundCoordinate(lat),
+    // City limits precompute: store the point-in-polygon result for fast popup responses.
     insideCityLimits: booleanPointInPolygon(point([lng, lat]), cityGeometry),
     searchText: normalizeAddress(
       [
@@ -138,6 +144,7 @@ for (const feature of addressesSource.features) {
   });
 }
 
+// Address sort order: put Missoula community results first, then alphabetize display labels.
 addresses.sort((a, b) => {
   if (a.community !== b.community) {
     if (a.community === "MISSOULA") return -1;
@@ -157,6 +164,7 @@ console.log(`Wrote ${addresses.length.toLocaleString()} addresses to ${path.rela
 console.log(`Wrote ${parksRecLocations.features.length.toLocaleString()} Parks & Rec locations to ${path.relative(root, outputParksRecPath)}`);
 console.log(`${insideCount.toLocaleString()} addresses are within city limits`);
 
+// Address normalization: same idea as app search, standardizing suffixes and directionals.
 function normalizeAddress(value) {
   return String(value ?? "")
     .normalize("NFKD")
