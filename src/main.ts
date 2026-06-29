@@ -40,6 +40,11 @@ const BASEMAP_LABELS: Record<BasemapKey, string> = {
   osm: "OSM",
   imagery: "Imagery",
 };
+const INITIAL_CITY_BOUNDS_PAD = 0.12;
+const INSIDE_RESULT_BOUNDS_PAD = 0.035;
+const OUTSIDE_RESULT_BOUNDS_PAD = 0.08;
+const MAP_TOP_PADDING: L.PointExpression = [40, 128];
+const MAP_BOTTOM_PADDING: L.PointExpression = [40, 72];
 
 leftLogo.src = leftLogoUrl;
 rightLogo.src = rightLogoUrl;
@@ -48,7 +53,7 @@ const map = L.map("map", {
   zoomControl: false,
   minZoom: 8,
   maxZoom: 18,
-  // Result zoom: fractional zoom makes the found-address zoom boost feel closer to 50%.
+  // Result zoom: fractional zoom allows subtle fitBounds changes instead of big jumps.
   zoomDelta: 0.5,
   zoomSnap: 0.25,
   maxBoundsViscosity: 0.85,
@@ -164,10 +169,10 @@ async function initialize(): Promise<void> {
   // Map extent lock: include all address data but keep users anchored near Missoula County.
   const maxBounds = buildDataBounds(addresses, cityBounds).pad(0.12);
   map.setMaxBounds(maxBounds);
-  map.fitBounds(cityBounds, {
+  map.fitBounds(cityBounds.pad(INITIAL_CITY_BOUNDS_PAD), {
     animate: false,
-    paddingTopLeft: [32, 112],
-    paddingBottomRight: [32, 32],
+    paddingTopLeft: MAP_TOP_PADDING,
+    paddingBottomRight: MAP_BOTTOM_PADDING,
   });
 
   addressIndex = buildAddressSearchIndex(addresses);
@@ -479,7 +484,7 @@ function selectAddress(address: AddressRecord): void {
   resultMarker
     .bindPopup(buildResultPopupContent(resultText, address))
     .openPopup();
-  fitResult(latLng);
+  fitResult(latLng, insideCityLimits);
 }
 
 // Result popup content: bold city-limit result plus a normal-weight distance line.
@@ -551,26 +556,25 @@ function formatMiles(miles: number): string {
   return miles.toFixed(1);
 }
 
-// Result zoom: fit city limits plus marker, then zoom about 50% closer to the found point.
-function fitResult(latLng: L.LatLng): void {
+// Result zoom: slight city zoom for inside matches; outside matches fit city plus result pin.
+function fitResult(latLng: L.LatLng, insideCityLimits: boolean): void {
   if (!cityBounds) {
-    map.setView(latLng, 13.5);
+    map.setView(latLng, insideCityLimits ? 12.5 : 11);
     return;
   }
 
-  const targetBounds = L.latLngBounds(
-    cityBounds.getSouthWest(),
-    cityBounds.getNorthEast(),
-  ).extend(latLng);
+  const targetBounds = insideCityLimits
+    ? L.latLngBounds(cityBounds.getSouthWest(), cityBounds.getNorthEast()).pad(
+        INSIDE_RESULT_BOUNDS_PAD,
+      )
+    : L.latLngBounds(cityBounds.getSouthWest(), cityBounds.getNorthEast())
+        .extend(latLng)
+        .pad(OUTSIDE_RESULT_BOUNDS_PAD);
 
   map.fitBounds(targetBounds, {
-    maxZoom: 13,
-    paddingTopLeft: [24, 124],
-    paddingBottomRight: [24, 36],
+    paddingTopLeft: MAP_TOP_PADDING,
+    paddingBottomRight: MAP_BOTTOM_PADDING,
   });
-
-  const zoomBoost = Math.log2(1.5);
-  map.setZoom(Math.min(map.getZoom() + zoomBoost, 13.5));
 }
 
 // City limits check: Turf point-in-polygon test against the loaded Missoula boundary.
