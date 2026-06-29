@@ -1,7 +1,5 @@
 # Missoula City Limits Address Checker
 
-Planning notes for a small GIS webmap that lets a user type an address and find out whether that address point falls within Missoula city limits. The tool should be accessible via GitHub Pages.
-
 ## Run the App
 
 ```bash
@@ -23,7 +21,7 @@ The GitHub Pages workflow in `.github/workflows/deploy-pages.yml` builds `dist/`
 
 ## Goal
 
-Build a simple web app with:
+Simple web app with:
 
 - An interactive Leaflet-style map centered on Missoula.
 - A prominent search bar at the top center of the map.
@@ -46,6 +44,9 @@ The repo currently includes:
   - Useful address attributes include `fulladdress`, `addnum`, `predir`, `roadname`, `posttype`, `postdir`, `fullroadname`, `subaddtype`, `subadd`, `community`, `state`, and `zipcode`.
 
 The county-wide address layer is useful because it allows the tool to return `Outside city limits` for addresses that are valid nearby addresses but not inside the city polygon.
+
+-Data source for city limits: Missoula County Open Data Portal (https://missoula-county-open-data-mcgis.hub.arcgis.com/datasets/577a441aebea4dfe97a2840666f99dc2_4/explore?location=46.871350%2C-114.017257%2C12)(https://arcg.is/05G1Ki)
+-Data source for address points: Missoula County Open Data Portal (https://missoula-county-open-data-mcgis.hub.arcgis.com/datasets/2cc878f55cbb492c9388026aec382e58_0/explore?location=47.202824%2C-113.927808%2C9)(https://arcg.is/1uLiXj1)
 
 ## Recommended Stack
 
