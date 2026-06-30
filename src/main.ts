@@ -59,8 +59,8 @@ const map = L.map("map", {
   maxBoundsViscosity: 0.85,
 }).setView([46.8721, -113.994], 12);
 
-// Basemap switcher: start on Esri Topo raster and let users toggle OSM/Imagery.
-let activeBasemapKey: BasemapKey = "topo";
+// Basemap switcher: start on OSM and let users toggle Esri Topo/Imagery.
+let activeBasemapKey: BasemapKey = "osm";
 let activeBasemapLayer = createBasemapLayer(activeBasemapKey).addTo(map);
 const basemapControl = createBasemapControl();
 basemapControl.addTo(map);
